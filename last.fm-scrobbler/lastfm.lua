@@ -48,4 +48,4 @@ function on_playback()
 end
 
 mp.register_event("metadata-update", on_metadata)
-mp.register_event("playback-start", on_playback)
+mp.register_event("file-loaded", on_playback)
