@@ -42,8 +42,17 @@ function on_playback()
 	length = mp.get_property("length")
 	if length and tonumber(length) < 30 then return end	-- last.fm doesn't allow scrobbling short tracks
 	artist = m["artist"]
+	if not artist then
+		artist = m["ARTIST"]
+	end
 	album = m["album"]
+	if not album then
+		album = m["ALBUM"]
+	end
 	title = m["title"]
+	if not title then
+		title = m["TITLE"]
+	end
 	scrobble(artist, title, album, length)
 end
 
