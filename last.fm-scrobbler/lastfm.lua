@@ -1,40 +1,47 @@
 local msg = require 'mp.msg'
 
 function mkmetatable()
-	m = {}
+	local m = {}
 	for i = 0, mp.get_property("metadata/list/count") - 1 do
-		p = "metadata/list/"..i.."/"
+		local p = "metadata/list/"..i.."/"
 		m[mp.get_property(p.."key")] = mp.get_property(p.."value")
 	end
 	return m
 end
 
-function scrobble(artist, title, album, length)
+function scrobble()
+	mp.resume_all()
+	-- Parameter escaping function. Works with POSIX shells; idk if there's a better way to call stuff portably in Lua.
+	function esc(s)
+		return string.gsub(s, "'", "'\\''")
+	end
+
+	msg.info(string.format("Scrobbling %s - %s", artist, title))
+
+	-- Using https://github.com/l29ah/w3crapcli/blob/master/last.fm/lastfm.pl
+	os.execute(string.format("lastfm.pl '%s' '%s' '%s' %d", esc(artist), esc(title), esc(album), length))
+end
+
+function enqueue()
 	mp.resume_all()
 	if artist and title then
-		msg.info(string.format("Scrobbling %s - %s", artist, title))
 		if not album then
 			album = ""
 		end
 		if not length then
-			length = 180	-- FIXME the old API sucks: it returns OK if the length is not specified/is 0/is -1, but doesn't scrobble anything.
+			length = 30	-- FIXME the old API sucks: it returns OK if the length is not specified/is 0/is -1, but doesn't scrobble anything.
 		end
 
-		-- Parameter escaping function. Works with POSIX shells; idk if there's a better way to call stuff portably in Lua.
-		function esc(s)
-			return string.gsub(s, "'", "'\\''")
-		end
-
-		-- Using https://github.com/l29ah/w3crapcli/blob/master/last.fm/lastfm.pl
-		os.execute(string.format("lastfm.pl '%s' '%s' '%s' %d", esc(artist), esc(title), esc(album), length))
+		if tim then tim.kill(tim) end
+		tim = mp.add_timeout(math.min(240, length / 2), scrobble)
 	end
 end
 
 function on_metadata()
-	t = mkmetatable()["icy-title"]
+	local t = mkmetatable()["icy-title"]
 	-- TODO better magic
 	artist, title = string.gmatch(t, "(.+) %- (.+)")()
-	scrobble(artist, title, nil, nil)
+	enqueue(artist, title, nil, nil)
 end
 
 function on_playback()
@@ -44,7 +51,7 @@ function on_playback()
 	artist = m["artist"]
 	album = m["album"]
 	title = m["title"]
-	scrobble(artist, title, album, length)
+	enqueue()
 end
 
 mp.register_event("metadata-update", on_metadata)
