@@ -38,21 +38,22 @@ function enqueue()
 end
 
 function on_metadata()
-	local t = mkmetatable()["icy-title"]
-	-- TODO better magic
-	artist, title = string.gmatch(t, "(.+) %- (.+)")()
-	enqueue(artist, title, nil, nil)
-end
-
-function on_playback()
-	m = mkmetatable()
-	length = mp.get_property("length")
-	if length and tonumber(length) < 30 then return end	-- last.fm doesn't allow scrobbling short tracks
-	artist = m["artist"]
-	album = m["album"]
-	title = m["title"]
+	local m = mkmetatable()
+	local icy = m["icy-title"]
+	if icy then
+		-- TODO better magic
+		artist, title = string.gmatch(icy, "(.+) %- (.+)")()
+		album = nil
+		length = nil
+	else
+		length = mp.get_property("length")
+		if length and tonumber(length) < 30 then return end	-- last.fm doesn't allow scrobbling short tracks
+		artist = m["artist"]
+		album = m["album"]
+		title = m["title"]
+	end
 	enqueue()
 end
 
 mp.register_event("metadata-update", on_metadata)
-mp.register_event("file-loaded", on_playback)
+mp.register_event("file-loaded", on_metadata)
